@@ -2,9 +2,54 @@ import os
 import time
 import json
 import sys
+import subprocess
+import shutil
 
 LAST_ENERGY_READING = None
 IS_AMDGPU = os.path.exists("/sys/kernel/debug/dri/0/amdgpu_pm_info")
+IS_NVGPU = os.path.exists("/dev/nvidia0")
+if IS_NVGPU:
+    NVSMI = shutil.which('nvidia-smi')
+    smiparams = [
+        "clocks.current.graphics",
+        "clocks.current.memory",
+        "clocks.current.video",
+        "temperature.gpu",
+        "temperature.memory",
+        "power.draw",
+        "power.limit",
+        "utilization.gpu",
+        "utilization.memory"
+    ]
+    params = [
+        "clocks.gpu.graphics",
+        "clocks.gpu.memory",
+        "clocks.gpu.video",
+        "gpu_temp",
+        "temperature.memory",
+        "average_gpu",
+        "power.limit",
+        "gpu_load",
+        "vram_load"
+    ]
+
+    qs = ",".join(smiparams)
+    smiqgpu = f"--query-gpu={qs}"
+
+def get_nvidia_stats():
+    if not NVSMI: return False
+    process = subprocess.run(
+        [ NVSMI, smiqgpu, "--format=csv" ],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    out = process.stdout.decode()
+    lines = out.split("\n")
+    headers = lines[0].split(",")
+    values = lines[1].split(",")
+    stats = {}
+    for i, _ in enumerate(smiparams):
+        stats[params[i]] = values[i]
+    return stats
 
 def get_radeon_stats():
     with open("/sys/kernel/debug/dri/0/amdgpu_pm_info") as amdgpu_info:
@@ -73,6 +118,8 @@ def collect_hw_stats():
     stats = {"time": int(time.time())}
     if IS_AMDGPU:
         stats.update(get_radeon_stats())
+    if IS_NVGPU:
+        stats.update(get_nvidia_stats())
     stats.update(get_cpu_stats())
     stats.update(get_mem_stats())
     return stats

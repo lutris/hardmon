@@ -4,7 +4,7 @@ Hardware monitoring tool for Linux
 hardmon is a CLI tool to gather hardware information in real time. It is primarely intended 
 to be used to benchmark a machine while running games or other performance intensive tasks.
 
-This is currently a prototype, Nvidia GPUs are not supported.
+This is currently a prototype.
 
 Collected metrics are:
 - GPU clocks
