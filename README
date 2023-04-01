@@ -1,0 +1,29 @@
+Hardware monitoring tool for Linux
+==================================
+
+hardmon is a CLI tool to gather hardware information in real time. It is primarely intended 
+to be used to benchmark a machine while running games or other performance intensive tasks.
+
+This is currently a prototype, Nvidia GPUs are not supported.
+
+Collected metrics are:
+- GPU clocks
+- GPU voltage
+- GPU load
+- GPU power consumption
+- GPU temperature
+- VRAM usage
+- CPU clocks
+- CPU temperature
+- CPU load
+- CPU power consumption
+- RAM usage
+
+Output is returned in JSON Lines format (each line is a valid JSON object) to stdout.
+
+Credits
+=======
+
+Mathieu Comandon, for the Lutris project
+
+If you appreciate this tool, please consider donating to the project! https://lutris.net/donate
