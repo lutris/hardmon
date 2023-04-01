@@ -1,9 +1,10 @@
+import os
 import time
 import json
 import sys
 
 LAST_ENERGY_READING = None
-
+IS_AMDGPU = os.path.exists("/sys/kernel/debug/dri/0/amdgpu_pm_info")
 
 def get_radeon_stats():
     with open("/sys/kernel/debug/dri/0/amdgpu_pm_info") as amdgpu_info:
@@ -67,7 +68,8 @@ def get_mem_stats():
 
 def collect_hw_stats():
     stats = {"time": int(time.time())}
-    stats.update(get_radeon_stats())
+    if IS_AMDGPU:
+        stats.update(get_radeon_stats())
     stats.update(get_cpu_stats())
     stats.update(get_mem_stats())
     return stats
