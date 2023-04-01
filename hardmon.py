@@ -44,12 +44,15 @@ def get_cpu_stats():
         cpu_stats["cpu_temp"] = int(cpu_temp_file.read().strip()) / 1000
     with open("/proc/loadavg") as cpu_load_file:
         cpu_stats["cpu_load"] = cpu_load_file.read().split()[0]
-    with open("/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj") as cpu_energy:
-        current_energy = int(cpu_energy.read().strip())
-        if LAST_ENERGY_READING:
-            # convert to uj/s then to Watts
-            cpu_stats["cpu_power"] = (current_energy - LAST_ENERGY_READING) / 1000000
-        LAST_ENERGY_READING = current_energy
+    try:
+        with open("/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj") as cpu_energy:
+            current_energy = int(cpu_energy.read().strip())
+            if LAST_ENERGY_READING:
+                # convert to uj/s then to Watts
+                cpu_stats["cpu_power"] = (current_energy - LAST_ENERGY_READING) / 1000000
+            LAST_ENERGY_READING = current_energy
+    except OSError:
+        pass
     return cpu_stats
 
 
