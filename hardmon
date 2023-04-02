@@ -1,9 +1,14 @@
+#!/bin/env python3
 import os
 import time
 import json
 import sys
 import subprocess
 import shutil
+
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+SERVER_PORT = os.environ.get("HARDMON_PORT", 7777)
 
 LAST_ENERGY_READING = None
 IS_AMDGPU = os.path.exists("/sys/kernel/debug/dri/0/amdgpu_pm_info")
@@ -124,9 +129,20 @@ def collect_hw_stats():
     stats.update(get_mem_stats())
     return stats
 
+class MetricServer(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        json_data = json.dumps(collect_hw_stats())
+        self.wfile.write(json_data.encode())
 
 if __name__ == "__main__":
-    while True:
-        sys.stdout.write(json.dumps(collect_hw_stats()))
-        sys.stdout.write("\n")
-        time.sleep(1)
+    if len(sys.argv) > 1 and sys.argv[1] == "--server":
+            server = HTTPServer(('0.0.0.0', SERVER_PORT), MetricServer)
+            server.serve_forever()
+    else:
+        while True:
+            sys.stdout.write(json.dumps(collect_hw_stats()))
+            sys.stdout.write("\n")
+            time.sleep(1)
