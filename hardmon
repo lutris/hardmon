@@ -10,6 +10,10 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 SERVER_PORT = os.environ.get("HARDMON_PORT", 7777)
 
+USE_DB = False
+if USE_DB:
+    import hardmondb
+
 LAST_ENERGY_READING = None
 LAST_ENERGY_TS = None
 IS_AMDGPU = os.path.exists("/sys/kernel/debug/dri/0/amdgpu_pm_info")
@@ -146,7 +150,15 @@ if __name__ == "__main__":
             server = HTTPServer(('0.0.0.0', SERVER_PORT), MetricServer)
             server.serve_forever()
     else:
+        if USE_DB:
+            conn = hardmondb.init('hardmon.db')
         while True:
-            sys.stdout.write(json.dumps(collect_hw_stats()))
-            sys.stdout.write("\n")
+            stats = collect_hw_stats()
+            if USE_DB:
+                hardmondb.add_stats(conn, stats)
+                if int(time.time()) % 3 == 0:
+                    hardmondb.load_avg(conn, ["3 seconds", "10 seconds", "30 seconds"])
+            else:
+                sys.stdout.write(json.dumps(stats))
+                sys.stdout.write("\n")
             time.sleep(1)
