@@ -54,7 +54,7 @@ def get_nvidia_stats():
     values = lines[1].split(",")
     stats = {}
     for i, _ in enumerate(smiparams):
-        stats[params[i]] = values[i]
+        stats[params[i]] = values[i].strip().split(" ")[0]
     return stats
 
 def get_radeon_stats():
