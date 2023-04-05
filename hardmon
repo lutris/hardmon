@@ -5,15 +5,15 @@ import json
 import sys
 import subprocess
 import shutil
+import sqlite3
+import socket
+import ipaddress
 from datetime import datetime
 
+import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 SERVER_PORT = os.environ.get("HARDMON_PORT", 7777)
-
-USE_DB = True
-if USE_DB:
-    import sqlite3
 
 LAST_ENERGY_READING = None
 LAST_ENERGY_TS = None
@@ -215,20 +215,50 @@ class MetricServer(BaseHTTPRequestHandler):
         json_data = json.dumps(collect_hw_stats())
         self.wfile.write(json_data.encode())
 
+def getargv(i):
+    if len(sys.argv) > i:
+        return sys.argv[i]
+    return None
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--server":
-            server = HTTPServer(('0.0.0.0', SERVER_PORT), MetricServer)
-            server.serve_forever()
-    else:
-        if USE_DB:
-            conn = db_init('hardmon.db')
+
+    # server / client / standalone
+    mode = getargv(1) if getargv(1) else "--standalone"
+    # ip or hostname / standalone refresh interval
+    hostaddr = getargv(2) if getargv(2) else "localhost"
+    # port
+    httpport = int(getargv(3)) if getargv(3) else SERVER_PORT
+
+    if mode == "--server":
+        ip = socket.gethostbyname(hostaddr)
+        print(f"hardmon server - http://{ip}:{httpport}/")
+        server = HTTPServer((ip, httpport), MetricServer)
+        server.serve_forever()
+
+    if mode == "--client":
+        conn = db_init('hardmon.db')
+        url = f"http://{hostaddr}:{httpport}/"
         while True:
-            stats = collect_hw_stats()
-            if USE_DB:
-                db_add_stats(conn, stats)
-                if int(time.time()) % 3 == 0:
-                    db_load_avg(conn, ["3 seconds", "10 seconds", "30 seconds"])
-            else:
-                sys.stdout.write(json.dumps(stats))
-                sys.stdout.write("\n")
+            r = requests.get(url=url)
+            stats = r.json()
+            db_add_stats(conn, stats)
+            if int(time.time()) % 3 == 0:
+                db_load_avg(conn, ["3 seconds", "10 seconds", "30 seconds"])
             time.sleep(1)
+
+    if mode == "--standalone":
+        d = int(hostaddr) if hostaddr.isdigit() else 5
+        while True:
+            print(json.dumps(collect_hw_stats()))
+            time.sleep(d)
+
+    if mode == "--help":
+        print("./hardmon --standalone")
+        print("     live monitor mode")
+        print("./hardmon --server (bind hostname or ip: localhost) (port: 7777)")
+        print("     ex: --server localhost 6666 | --server 0.0.0.0")
+        print("./hardmon --client (server hostname or ip: localhost) (server port: 7777)")
+        print("     ex: --client localhost 6666 | --client 192.168.1.42")
+        sys.exit(0)
+
+    print("hint: --help")
